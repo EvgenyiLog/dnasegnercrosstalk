@@ -1,14 +1,19 @@
-from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks    
+from scipy.signal import find_peaks
+from sklearn.linear_model import LinearRegression
 
-def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:int=200, 
-                         min_distance:int=10, min_purity:float=0.5,init_M=None, verbose:bool=True):
-    """Оценка M через корреляции (Ye et al. 2010).
-    data: (N_clusters_or_scans, 4)"""
+
+def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50, 
+                         min_distance:int=10, min_purity:float=0.5 ,eps=1e-12,verbose:bool=True):
+    """
+    peaks_by_dye: dict {0:[peak1, peak2, ...], 1:[...], 2:[...], 3:[...]}
+    Каждый peak = array-like shape (4,), порядок каналов один и тот же
+    Возвращает M shape (4,4), где столбец j соответствует красителю j.
+    """
+    M = np.zeros((4, 4), dtype=float)
     data=data.values
-    M = init_M if init_M is not None else np.eye(4)
+    
     
     # --- Найти все пики (один раз) ---
     envelope = data.max(axis=1)
@@ -21,15 +26,26 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
     top_indices = np.argsort(peak_I.sum(axis=1))[-4:]  # индексы 4 самых ярких пиков
-    top_peaks = peak_normalized[top_indices]  # (4, 4)
-    M = top_peaks.T  # (4, 4) - столбцы = пики
-    if verbose:
-        print(f"Найдено пиков: {len(peak_pos)}")
+    peaks_by_dye = peak_normalized[top_indices]  # (4, 4)
+    M = np.zeros((4, 4), dtype=float)
+    for j in range(4):
+        Y = peaks_by_dye
+        if len(Y) == 0:
+            M[:, j] = np.eye(4)[:, j]
+            continue
+        Y = Y / Y.sum(axis=1, keepdims=True)
 
+        # intercept-only regression: X = 1
+        X = np.ones((len(Y), 1), dtype=float)
+        reg = LinearRegression(fit_intercept=False)
+        reg.fit(X, Y)
+        m = reg.coef_.ravel()   # shape (4,)
+        m = np.clip(m, 0, None)
+        M[:, j] = m / m.sum()
 
     # --- Итерации ---
     for iteration in range(n_iter):
-        M_inv = np.linalg.inv(M)
+        M_inv = np.linalg.pinv(M)
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
@@ -66,5 +82,4 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break
-    
     return M
