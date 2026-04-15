@@ -13,10 +13,19 @@ dependencies = [
     "matplotlib>=3.10.8",
     "notebook>=7.5.5",
     "numpy>=2.4.3",
+    "openpyxl>=3.1.5",
     "pandas>=3.0.1",
     "pybaselines>=1.2.1",
     "scikit-learn>=1.8.0",
     "scipy>=1.17.1",
     "seaborn>=0.13.2",
+    "tqdm",
     "voila>=0.5.11",
+    "xlsxwriter>=3.2.9",
+]
+
+[dependency-groups]
+dev = [
+    "poethepoet",
+    "wheel>=0.46.3",
 ]

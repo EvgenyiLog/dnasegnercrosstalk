@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def replace_outliers(df: pd.DataFrame, coefficient: float = 11) -> pd.DataFrame:
+def replace_outliers(df: pd.DataFrame, coefficient: float = 15) -> pd.DataFrame:
     """
     Заменяет выбросы в каждом столбце датафрейма с использованием метода межквартильного диапазона (IQR).
     
