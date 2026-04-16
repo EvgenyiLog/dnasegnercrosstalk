@@ -3,7 +3,7 @@ from scipy.signal import find_peaks      # поиск пиков
 import pandas as pd 
 
 
-def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=200, 
+def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=150, 
                          min_distance:int=10, min_purity:float=0.5,
                          init_M=None, verbose:bool=True):
     """
