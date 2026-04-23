@@ -1,4 +1,5 @@
-def normalize_diagonal(matrix):
+import numpy as np
+def normalize_diagonal(matrix:np.ndarray):
     """
     Приводит матрицу к виду с единицами на главной диагонали
     """

@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
-from typing import Optional, Dict, Any, List, Tuple
+from typing import Union,Optional, Dict, Any, List, Tuple
 
 
 def estimate_M_from_data(
-    raw: pd.DataFrame,
+    raw: Union[pd.DataFrame,np.ndarray],
     dye_order: List[str],
     min_purity: float = 0.5,
     peak_height: float = 500,
@@ -82,9 +82,7 @@ def estimate_M_from_data(
     (4, 4)
     """
     
-    # Проверки входных данных
-    if not isinstance(raw, pd.DataFrame):
-        raise TypeError("raw должен быть pandas DataFrame")
+    
     
     if len(dye_order) != 4:
         raise ValueError(f"dye_order должен содержать 4 элемента, получено {len(dye_order)}")
