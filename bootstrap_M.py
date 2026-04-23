@@ -193,7 +193,7 @@ def bootstrap_M(
         
         try:
             # Оцениваем матрицу M для бутстрап-выборки
-            M_b = estimator(bootstrap_data, **kwargs)
+            M_b = estimator(bootstrap_data, dye_order=['G', 'A', 'T', 'C'],**kwargs)
             
             # Проверяем, что M_b имеет правильную форму
             if M_b.shape != (4, 4):
@@ -202,6 +202,7 @@ def bootstrap_M(
             Ms.append(M_b)
             
         except Exception as e:
+            print(e)
             failed_iterations += 1
             if verbose and failed_iterations <= 5:  # Показываем первые 5 ошибок
                 print(f"Предупреждение: итерация {b} не удалась: {e}")
