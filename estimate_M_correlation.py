@@ -21,7 +21,7 @@ import pandas as pd
 from scipy.signal import find_peaks    
 
 def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
-                         min_distance:int=10, min_purity:float=0.5,init_M=None, verbose:bool=True):
+                         min_distance:int=10, min_purity:float=0.75,init_M=None, verbose:bool=True):
     """Оценка M через корреляции (Ye et al. 2010).
     data: (N_clusters_or_scans, 4)"""
     data=data.values
