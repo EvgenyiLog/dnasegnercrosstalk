@@ -1,7 +1,11 @@
 import  numpy as np     # инверсия, condition number
 from scipy.signal import find_peaks      # поиск пиков
 import pandas as pd 
-
+from frobenius_delta import frobenius_delta
+from compute_chastity import compute_chastity
+from compute_purity import compute_purity
+from assignment_change import assignment_change
+from  condition_number import  condition_number
 
 def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=150, 
                          min_distance:int=10, min_purity:float=0.75,
@@ -36,6 +40,8 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
     
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
+
+    prev_assignments=None
     
     # --- Итерации ---
     for iteration in range(n_iter):
@@ -43,6 +49,8 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
+        purity=compute_purity(concentrations)
+        chastity=compute_chastity(concentrations)
         assignments = np.argmax(concentrations, axis=1)
         
         # Чистота после деконволюции
@@ -64,13 +72,31 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
                 continue
             
             M_new[:, j] = peak_normalized[mask].mean(axis=0)
+            prev_assignments=assignments
+           
         
         # Проверка сходимости
         change = np.abs(M_new - M).max()
+        
+        frob=frobenius_delta(M_new,M)
+        cond=condition_number(M_new)
+        if prev_assignments is not None:
+            assign_delta=assignment_change(prev_assignments, assignments)
+            assign_delta=np.mean(assign_delta)
+
+        else:
+            assign_delta=1.0
+
         M = M_new
+       
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  Δassign = {assign_delta:.6f}")
+            print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
+            print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  mean purity = {purity.mean():.6f}")
+            print(f"  Итерация {iteration+1}:  mean chastity= {chastity.mean():.6f}")
         
         if change < 1e-6:
             if verbose:
