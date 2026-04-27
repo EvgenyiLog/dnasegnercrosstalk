@@ -4,7 +4,7 @@ import pandas as pd
 
 
 def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=150, 
-                         min_distance:int=10, min_purity:float=0.5,
+                         min_distance:int=10, min_purity:float=0.75,
                          init_M=None, verbose:bool=True):
     """
     Итеративная оценка матрицы M по Li & Speed (1999).
