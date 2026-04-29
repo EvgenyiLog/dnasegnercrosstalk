@@ -8,7 +8,7 @@ from assignment_change import assignment_change
 from  condition_number import  condition_number
 
 def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=150, 
-                         min_distance:int=10, min_purity:float=0.75,
+                         min_distance:int=10, min_purity:float=0.75,ridge:float=1e-8,
                          init_M=None, verbose:bool=True):
     """
     Итеративная оценка матрицы M по Li & Speed (1999).
@@ -31,7 +31,8 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
     envelope = data.max(axis=1)
     peak_pos, _ = find_peaks(envelope, height=min_height, 
                               distance=min_distance)
-    peak_I = data[peak_pos, :]  # (N_peaks, 4)
+      
+    peak_I = np.clip(data[peak_pos, :], 0, None)# (N_peaks, 4)
     
     # Нормируем пики для M-шага
     norms = peak_I.sum(axis=1, keepdims=True)
@@ -46,7 +47,7 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
     # --- Итерации ---
     for iteration in range(n_iter):
         M_inv = np.linalg.inv(M)
-        
+       
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
         purity=compute_purity(concentrations)
@@ -71,7 +72,7 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
                 M_new[:, j] = M[:, j]  # оставляем старый
                 continue
             
-            M_new[:, j] = peak_normalized[mask].mean(axis=0)
+            M_new[:, j] = peak_normalized[mask].mean(axis=0)+ridge
             prev_assignments=assignments
            
         

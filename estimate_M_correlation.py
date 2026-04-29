@@ -31,7 +31,8 @@ def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:
     envelope = data.max(axis=1)
     peak_pos, _ = find_peaks(envelope, height=min_height, 
                               distance=min_distance)
-    peak_I = data[peak_pos, :]  # (N_peaks, 4)
+    
+    peak_I = np.clip(data[peak_pos, :], 0, None) # (N_peaks, 4)
     
     # Нормируем пики для M-шага
     norms = peak_I.sum(axis=1, keepdims=True)

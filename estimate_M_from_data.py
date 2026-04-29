@@ -93,6 +93,7 @@ def estimate_M_from_data(
     # Преобразуем в numpy массив для удобства
     raw_array = raw.values if isinstance(raw, pd.DataFrame) else np.array(raw)
     n_channels = raw_array.shape[1]
+    raw_array = np.clip(raw_array, 0, None)
     
     if n_channels != 4:
         raise ValueError(f"Данные должны содержать 4 канала, получено {n_channels}")
@@ -109,6 +110,7 @@ def estimate_M_from_data(
             distance=peak_distance,
             prominence=peak_prominence
         )
+        
         
         # Анализируем каждый найденный пик
         for peak_idx in peaks:
