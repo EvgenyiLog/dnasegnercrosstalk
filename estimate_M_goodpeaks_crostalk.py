@@ -2,7 +2,10 @@ from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks    
+from condition_number import condition_number
 from   regularize_M import regularize_M
+
+from init_M_farthest import init_M_farthest
 
 def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:int=200, 
                          min_distance:int=10, min_purity:float=0.5,init_M=None, verbose:bool=True):
@@ -24,9 +27,13 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     peak_normalized = peak_I / norms
     # print(peak_normalized.shape)
    
-    top_indices = np.argsort(peak_I.sum(axis=1))[-4:]  # индексы 4 самых ярких пиков
-    top_peaks = peak_normalized[top_indices]  # (4, 4)
-    M = top_peaks.T  # (4, 4) - столбцы = пики
+    top_indices = np.argsort(peak_I.sum(axis=1))[-20:]  # индексы 20 самых ярких пиков
+    top_peaks = peak_normalized[top_indices]  # (20, 20)
+   
+
+    # --- farthest init ---
+    M = init_M_farthest(top_peaks)
+
     # Проверка обусловленности
     cond = np.linalg.cond(M)
     
@@ -34,6 +41,7 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     if cond>1000:
         print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
         M=regularize_M(M, reg=0.01)
+        cond = np.linalg.cond(M)
         print(f"Число обусловленности после регуляризации: {cond:.2f}")
     # print(M)
     if verbose:
@@ -72,6 +80,7 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
         # Проверка сходимости
         change = np.abs(M_new - M).max()
         M = M_new
+        cond=condition_number(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
