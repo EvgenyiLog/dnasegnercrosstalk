@@ -2,6 +2,7 @@ from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks    
+from   regularize_M import regularize_M
 
 def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:int=200, 
                          min_distance:int=10, min_purity:float=0.5,init_M=None, verbose:bool=True):
@@ -21,9 +22,20 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     norms = peak_I.sum(axis=1, keepdims=True)
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
+    # print(peak_normalized.shape)
+   
     top_indices = np.argsort(peak_I.sum(axis=1))[-4:]  # индексы 4 самых ярких пиков
     top_peaks = peak_normalized[top_indices]  # (4, 4)
     M = top_peaks.T  # (4, 4) - столбцы = пики
+    # Проверка обусловленности
+    cond = np.linalg.cond(M)
+    
+    print(f"Число обусловленности: {cond:.2f}")
+    if cond>1000:
+        print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
+        M=regularize_M(M, reg=0.01)
+        print(f"Число обусловленности после регуляризации: {cond:.2f}")
+    # print(M)
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
 
@@ -34,6 +46,7 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
+        concentrations = np.maximum(concentrations, 0.0)
         assignments = np.argmax(concentrations, axis=1)
         
         # Чистота после деконволюции
@@ -62,6 +75,7 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
         if change < 1e-6:
             if verbose:
