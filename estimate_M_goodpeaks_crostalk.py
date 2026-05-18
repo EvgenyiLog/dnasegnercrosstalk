@@ -5,6 +5,8 @@ from scipy.signal import find_peaks
 from condition_number import condition_number
 from   regularize_M import regularize_M
 
+from svd_condition  import svd_condition
+
 from init_M_farthest import init_M_farthest
 
 def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:int=200, 
@@ -38,9 +40,11 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     cond = np.linalg.cond(M)
     
     print(f"Число обусловленности: {cond:.2f}")
-    if cond>1000:
+    if cond>20:
         print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
         M=regularize_M(M, reg=0.01)
+        M=svd_condition(M,target_cond=10)
+
         cond = np.linalg.cond(M)
         print(f"Число обусловленности после регуляризации: {cond:.2f}")
     # print(M)
