@@ -42,8 +42,9 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     print(f"Число обусловленности: {cond:.2f}")
     if cond>20:
         print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
-        M=regularize_M(M, reg=0.01)
-        M=svd_condition(M,target_cond=10)
+        # M=regularize_M(M, reg=0.01)
+        # M=svd_condition(M,target_cond=7)
+        M=np.ones_like(M)
 
         cond = np.linalg.cond(M)
         print(f"Число обусловленности после регуляризации: {cond:.2f}")
@@ -54,7 +55,11 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
 
     # --- Итерации ---
     for iteration in range(n_iter):
-        M_inv = np.linalg.inv(M)
+        try:
+           M_inv = np.linalg.inv(M)
+        except Exception:
+            M_inv = np.linalg.pinv(M)
+
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
@@ -90,7 +95,7 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
-        if change < 1e-6:
+        if change < 1e-6 or cond>20:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break

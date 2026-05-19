@@ -42,11 +42,11 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
     cond = np.linalg.cond(M)
     
     print(f"Число обусловленности: {cond:.2f}")
-    if cond>1000:
-        print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
-        M=regularize_M(M, reg=0.01)
-        cond = np.linalg.cond(M)
-        print(f"Число обусловленности после регуляризации: {cond:.2f}")
+    # if cond>20:
+    #     print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
+    #     M=np.eye(4)
+    #     cond = np.linalg.cond(M)
+    #     print(f"Число обусловленности единичной диаганальной матрицы: {cond:.2f}")
 
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
@@ -90,7 +90,7 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
-        if change < 1e-6:
+        if change < 1e-6 or cond>20:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break

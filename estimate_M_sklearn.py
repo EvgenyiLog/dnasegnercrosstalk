@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 from sklearn.linear_model import LinearRegression
+from condition_number import condition_number
 
 
 def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50, 
@@ -19,7 +20,7 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
     envelope = data.max(axis=1)
     peak_pos, _ = find_peaks(envelope, height=min_height, 
                               distance=min_distance)
-    peak_I = data[peak_pos, :]  # (N_peaks, 4)
+    peak_I = np.clip(data[peak_pos, :], 0, None) # (N_peaks, 4)
     
     # Нормируем пики для M-шага
     norms = peak_I.sum(axis=1, keepdims=True)
@@ -43,9 +44,22 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
         m = np.clip(m, 0, None)
         M[:, j] = m / m.sum()
 
+    cond=condition_number(M)
+    print(f"Число обусловленности: {cond:.2f}")
+    if cond>20:
+        print("Число обусловленности  приняло опасное значение.")
+
+
+    if verbose:
+        print(f"Найдено пиков: {len(peak_pos)}")
+
     # --- Итерации ---
     for iteration in range(n_iter):
-        M_inv = np.linalg.pinv(M)
+        try:
+           M_inv = np.linalg.inv(M)
+        except Exception:
+             M_inv = np.linalg.pinv(M)
+
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
@@ -74,11 +88,16 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
         # Проверка сходимости
         change = np.abs(M_new - M).max()
         M = M_new
+        cond=condition_number(M_new)
+        
+        if verbose and (iteration < 3 or iteration % 5 == 0):
+            print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
         
-        if change < 1e-6:
+        if change < 1e-6 or cond>20:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break

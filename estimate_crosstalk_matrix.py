@@ -99,7 +99,7 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
             print(f"  Итерация {iteration+1}:  mean purity = {purity.mean():.6f}")
             print(f"  Итерация {iteration+1}:  mean chastity= {chastity.mean():.6f}")
         
-        if change < 1e-6:
+        if change < 1e-6 or cond>20:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break

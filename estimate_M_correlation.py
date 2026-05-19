@@ -18,7 +18,10 @@ def estimate_M_correlation(data:pd.DataFrame):
 
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks    
+from scipy.signal import find_peaks   
+from condition_number import condition_number 
+from frobenius_delta import frobenius_delta
+
 
 def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
                          min_distance:int=10, min_purity:float=0.75,init_M=None, verbose:bool=True):
@@ -44,6 +47,11 @@ def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:
     # и сумма столбца = 1
     M = np.abs(C)  # корреляции → положительные
     M = M / M.sum(axis=0, keepdims=True)  # нормировка
+
+    # Проверка обусловленности
+    cond = np.linalg.cond(M)
+    
+    print(f"Число обусловленности: {cond:.2f}")
    
     
     if verbose:
@@ -81,11 +89,15 @@ def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:
         # Проверка сходимости
         change = np.abs(M_new - M).max()
         M = M_new
+        frob=frobenius_delta(M_new,M)
+        cond=condition_number(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
+            print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
-        if change < 1e-6:
+        if change < 1e-6 or cond>20:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break
