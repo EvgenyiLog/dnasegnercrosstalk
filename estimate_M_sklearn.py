@@ -47,7 +47,12 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
     cond=condition_number(M)
     print(f"Число обусловленности: {cond:.2f}")
     if cond>20:
-        print("Число обусловленности  приняло опасное значение.")
+        print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
+        
+        M=np.ones_like(M)
+
+        cond = np.linalg.cond(M)
+        print(f"Число обусловленности после регуляризации: {cond:.2f}")
 
 
     if verbose:
