@@ -26,28 +26,26 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
     # KMeans кластеризация
-    kmeans = KMeans(n_clusters=4, random_state=42, n_init=10)
-    peak_cos = normalize(peak_normalized, norm='l2') 
-    labels = kmeans.fit_predict(peak_cos)
-    centers = kmeans.cluster_centers_
+    kmeans = KMeans(n_clusters=4, random_state=42).fit(peak_normalized)
+    labels = kmeans.labels_
+    M = np.zeros((4, 4),dtype=float)
+    for k in range(4):
+        cluster = peak_normalized[labels == k]
+        cluster_I = peak_I[labels == k]
+        if len(cluster) == 0:
+           M[:, k] = np.eye(4)[:, k]
+           continue
+        # purity (или chastity / whatever metric you use)
+        purity = cluster_I.max(axis=1) / (cluster_I.sum(axis=1) + 1e-12)
+        # --- вариант 1 (лучший по стабильности) ---
+        idx = np.argmax(purity)
+        M[:, k] = cluster[idx]
 
-    
-    
-    
-    # Нормируем центры (чтобы сумма = 1)
-    centers = centers / centers.sum(axis=1,keepdims=True)
-    # print(centers)
-    # print((centers >= 0).all() and (centers <= 1).all()) 
-    M=centers.T
     cond = np.linalg.cond(M)
+   
     
     print(f"Число обусловленности: {cond:.2f}")
-    if cond>20:
-        print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
-        M=np.eye(4)
-        M=np.ones_like(M)
-        cond = np.linalg.cond(M)
-        print(f"Число обусловленности единичной диаганальной матрицы: {cond:.2f}")
+    
 
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")

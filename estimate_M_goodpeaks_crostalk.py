@@ -29,8 +29,8 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
     peak_normalized = peak_I / norms
     # print(peak_normalized.shape)
    
-    top_indices = np.argsort(peak_I.sum(axis=1))[-20:]  # индексы 20 самых ярких пиков
-    top_peaks = peak_normalized[top_indices]  # (20, 20)
+    top_indices = np.argsort(peak_I.sum(axis=1))[-100:]  # индексы 100 самых ярких пиков
+    top_peaks = peak_normalized[top_indices]  # (100, 100)
    
 
     # --- farthest init ---

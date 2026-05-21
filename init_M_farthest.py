@@ -2,7 +2,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 def init_M_farthest(
-    peak_normalized: NDArray[np.float64],
+    peak_normalized: NDArray[np.float64],n_components:int=4
 ) -> NDArray[np.float64]:
     """
     Инициализация матрицы M методом farthest-point (max-min spread).
@@ -50,24 +50,22 @@ def init_M_farthest(
     """
     if peak_normalized.shape[0] < 4:
         raise ValueError("Need at least 4 peaks for initialization")
-
-    # 1. стартовый пик (максимальная энергия)
-    idx0 = int(np.argmax(peak_normalized.sum(axis=1)))
-    selected: list[int] = [idx0]
-
-    # 2. farthest-point selection
-    for _ in range(3):
-        dists = np.min(
-            [
-                np.linalg.norm(peak_normalized - peak_normalized[i], axis=1)
-                for i in selected
-            ],
-            axis=0,
-        )
-
-        next_idx = int(np.argmax(dists))
-        selected.append(next_idx)
-
-    centers = peak_normalized[selected]  # (4, 4)
-
-    return centers.T  # (4, 4) — столбцы = пики
+    N = peak_normalized.shape[0]
+    
+    # 1. первый — самый "сильный" (можно любой, но так стабильнее)
+    norms = np.linalg.norm(peak_normalized, axis=1)
+    idx = np.argmax(norms)
+    
+    selected = [idx]
+    
+    for _ in range(1, n_components):
+        dist = np.min([
+            np.linalg.norm(peak_normalized - peak_normalized[j], axis=1) for j in selected
+        ], axis=0)
+        
+        idx = np.argmax(dist)
+        selected.append(idx)
+    
+    M = peak_normalized[selected].T  # (4,4)
+    
+    return M

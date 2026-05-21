@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from scipy.signal import find_peaks
 from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge
 from condition_number import condition_number
 
 
@@ -28,32 +29,31 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
     peak_normalized = peak_I / norms
     top_indices = np.argsort(peak_I.sum(axis=1))[-4:]  # индексы 4 самых ярких пиков
     peaks_by_dye = peak_normalized[top_indices]  # (4, 4)
-    M = np.zeros((4, 4), dtype=float)
-    for j in range(4):
-        Y = peaks_by_dye
-        if len(Y) == 0:
-            M[:, j] = np.eye(4)[:, j]
-            continue
-        Y = Y / Y.sum(axis=1, keepdims=True)
 
-        # intercept-only regression: X = 1
-        X = np.ones((len(Y), 1), dtype=float)
+    M = np.zeros((4, 4),dtype=float)
+    for j in range(4):
+        # пики где канал j доминирует
+        idx = np.argsort(peak_I[:, j])[-10:]
+    
+        Y = peak_normalized[idx]   # (N, 4)
+    
+        # X = one-hot
+        X = np.zeros((len(idx), 4))
+        X[:, j] = 1
+    
         reg = LinearRegression(fit_intercept=False)
         reg.fit(X, Y)
-        m = reg.coef_.ravel()   # shape (4,)
+        reg = Ridge(alpha=1e-3, fit_intercept=False)
+        reg.fit(X,Y)
+    
+        m = reg.coef_[j]  # важный момент!
         m = np.clip(m, 0, None)
+    
         M[:, j] = m / m.sum()
 
     cond=condition_number(M)
     print(f"Число обусловленности: {cond:.2f}")
-    if cond>20:
-        print("Число обусловленности  приняло опасное значение.Применим регуляризацию.")
-        
-        M=np.ones_like(M)
-
-        cond = np.linalg.cond(M)
-        print(f"Число обусловленности после регуляризации: {cond:.2f}")
-
+    
 
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
