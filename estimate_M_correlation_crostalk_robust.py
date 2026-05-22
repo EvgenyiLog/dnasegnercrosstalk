@@ -1,14 +1,12 @@
-from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks  
-from condition_number import condition_number
-from   regularize_M import regularize_M
-from sklearn.preprocessing import normalize
-from sklearn.preprocessing import StandardScaler
+from scipy.signal import find_peaks   
+from condition_number import condition_number 
+from frobenius_delta import frobenius_delta
+from robust_corr_matrix import robust_corr_matrix
 
 
-def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
+def estimate_M_correlation_crostalk_robust(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
                          min_distance:int=10, min_purity:float=0.75,init_M=None, verbose:bool=True):
     """Оценка M через корреляции (Ye et al. 2010).
     data: (N_clusters_or_scans, 4)"""
@@ -19,46 +17,44 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
     envelope = data.max(axis=1)
     peak_pos, _ = find_peaks(envelope, height=min_height, 
                               distance=min_distance)
-     
+    
     peak_I = np.clip(data[peak_pos, :], 0, None) # (N_peaks, 4)
     
     # Нормируем пики для M-шага
     norms = peak_I.sum(axis=1, keepdims=True)
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
-    # KMeans кластеризация
-    kmeans = KMeans(n_clusters=4, random_state=42).fit(peak_normalized)
-    labels = kmeans.labels_
-    M = np.zeros((4, 4),dtype=float)
-    for k in range(4):
-        cluster = peak_normalized[labels == k]
-        cluster_I = peak_I[labels == k]
-        if len(cluster) == 0:
-           M[:, k] = np.eye(4)[:, k]
-           continue
-        # purity (или chastity / whatever metric you use)
-        purity = cluster_I.max(axis=1) / (cluster_I.sum(axis=1) + 1e-12)
-        # --- вариант 1 (лучший по стабильности) ---
-        idx = np.argmax(purity)
-        M[:, k] = cluster[idx]
+    C = robust_corr_matrix(peak_I.T,methods='kendall',annot=False) # (4, 4)
+    if isinstance(C, pd.DataFrame):
+        C=C.values
 
+    print(C)
+    
+    # Нормируем столбцы так, чтобы диагональ была максимальной
+    # и сумма столбца = 1
+    M = np.abs(C)  # корреляции → положительные
+    M = M / M.sum(axis=0, keepdims=True)  # нормировка
+
+    # Проверка обусловленности
     cond = np.linalg.cond(M)
-   
     
     print(f"Число обусловленности: {cond:.2f}")
+   
     
-
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
 
 
     # --- Итерации ---
     for iteration in range(n_iter):
-        M_inv = np.linalg.inv(M)
+        try:
+           M_inv = np.linalg.inv(M)
+        except Exception:
+            M_inv = np.linalg.pinv(M)
+
         
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
-        concentrations = np.maximum(concentrations, 0.0)
         assignments = np.argmax(concentrations, axis=1)
         
         # Чистота после деконволюции
@@ -84,10 +80,12 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
         # Проверка сходимости
         change = np.abs(M_new - M).max()
         M = M_new
+        frob=frobenius_delta(M_new,M)
         cond=condition_number(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
         
         if change < 1e-6 or cond>20:

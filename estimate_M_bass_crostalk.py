@@ -1,64 +1,54 @@
-from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks  
-from condition_number import condition_number
-from   regularize_M import regularize_M
-from sklearn.preprocessing import normalize
-from sklearn.preprocessing import StandardScaler
+from scipy.signal import find_peaks   
+from condition_number import condition_number 
+from frobenius_delta import frobenius_delta
+from compute_chastity import compute_chastity
+from compute_purity import compute_purity
+from assignment_change import assignment_change
 
 
-def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
+
+def estimate_M_bass_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200,min_height_percentile: float = 15 ,
                          min_distance:int=10, min_purity:float=0.75,init_M=None, verbose:bool=True):
     """Оценка M через корреляции (Ye et al. 2010).
     data: (N_clusters_or_scans, 4)"""
     data=data.values
     M = init_M if init_M is not None else np.eye(4)
+    min_height = np.percentile(data, min_height_percentile)
+    mask = np.any(data > min_height, axis=1)
+    n_scans = data.shape[0]
+    data = data[mask][:n_scans]
     
     # --- Найти все пики (один раз) ---
     envelope = data.max(axis=1)
     peak_pos, _ = find_peaks(envelope, height=min_height, 
                               distance=min_distance)
-     
+    
     peak_I = np.clip(data[peak_pos, :], 0, None) # (N_peaks, 4)
     
     # Нормируем пики для M-шага
     norms = peak_I.sum(axis=1, keepdims=True)
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
-    # KMeans кластеризация
-    kmeans = KMeans(n_clusters=4, random_state=42).fit(peak_normalized)
-    labels = kmeans.labels_
-    M = np.zeros((4, 4),dtype=float)
-    for k in range(4):
-        cluster = peak_normalized[labels == k]
-        cluster_I = peak_I[labels == k]
-        if len(cluster) == 0:
-           M[:, k] = np.eye(4)[:, k]
-           continue
-        # purity (или chastity / whatever metric you use)
-        purity = cluster_I.max(axis=1) / (cluster_I.sum(axis=1) + 1e-12)
-        # --- вариант 1 (лучший по стабильности) ---
-        idx = np.argmax(purity)
-        M[:, k] = cluster[idx]
-
-    cond = np.linalg.cond(M)
-   
+     # Нормируем пики для M-шага
+    norms = peak_I.sum(axis=1, keepdims=True)
+    norms[norms == 0] = 1
+    peak_normalized = peak_I / norms
     
-    print(f"Число обусловленности: {cond:.2f}")
-    
-
     if verbose:
         print(f"Найдено пиков: {len(peak_pos)}")
 
-
+    prev_assignments=None
+    
     # --- Итерации ---
     for iteration in range(n_iter):
         M_inv = np.linalg.inv(M)
-        
+       
         # E-шаг: деконволюция и назначение
         concentrations = (M_inv @ peak_I.T).T  # (N_peaks, 4)
-        concentrations = np.maximum(concentrations, 0.0)
+        purity=compute_purity(concentrations)
+        chastity=compute_chastity(concentrations)
         assignments = np.argmax(concentrations, axis=1)
         
         # Чистота после деконволюции
@@ -79,16 +69,32 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
                 M_new[:, j] = M[:, j]  # оставляем старый
                 continue
             
-            M_new[:, j] = peak_normalized[mask].mean(axis=0)
+            M_new[:, j] = peak_normalized[mask].mean(axis=0)+ridge
+            prev_assignments=assignments
+           
         
         # Проверка сходимости
         change = np.abs(M_new - M).max()
-        M = M_new
+        
+        frob=frobenius_delta(M_new,M)
         cond=condition_number(M_new)
+        if prev_assignments is not None:
+            assign_delta=assignment_change(prev_assignments, assignments)
+            assign_delta=np.mean(assign_delta)
+
+        else:
+            assign_delta=1.0
+
+        M = M_new
+       
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
+            print(f"  Итерация {iteration+1}:  Δassign = {assign_delta:.6f}")
+            print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  mean purity = {purity.mean():.6f}")
+            print(f"  Итерация {iteration+1}:  mean chastity= {chastity.mean():.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:

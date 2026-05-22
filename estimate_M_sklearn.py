@@ -102,7 +102,7 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
         
-        if change < 1e-6 or cond>20:
+        if change < 1e-6 or cond>50:
             if verbose:
                 print(f"  Сходимость на итерации {iteration+1}")
             break
