@@ -21,6 +21,7 @@ import pandas as pd
 from scipy.signal import find_peaks   
 from condition_number import condition_number 
 from frobenius_delta import frobenius_delta
+from rank_matrix import rank_matrix
 
 
 def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
@@ -91,11 +92,13 @@ def estimate_M_correlation_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:
         M = M_new
         frob=frobenius_delta(M_new,M)
         cond=condition_number(M_new)
+        rankm=rank_matrix(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:

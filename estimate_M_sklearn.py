@@ -4,6 +4,7 @@ from scipy.signal import find_peaks
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 from condition_number import condition_number
+from rank_matrix import rank_matrix
 
 
 def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50, 
@@ -94,10 +95,13 @@ def estimate_M_sklearn(data:pd.DataFrame,min_height:int=200,n_iter:int=50,
         change = np.abs(M_new - M).max()
         M = M_new
         cond=condition_number(M_new)
+        rankm=rank_matrix(M_new)
+        
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")

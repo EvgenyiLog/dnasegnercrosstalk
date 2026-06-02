@@ -8,6 +8,9 @@ from   regularize_M import regularize_M
 from svd_condition  import svd_condition
 
 from init_M_farthest import init_M_farthest
+from rank_matrix import rank_matrix
+
+from frobenius_delta import frobenius_delta
 
 def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:int=200, 
                          min_distance:int=10, min_purity:float=0.5,init_M=None, verbose:bool=True):
@@ -90,10 +93,12 @@ def estimate_M_goodpeaks_crostalk(data:pd.DataFrame,n_iter:int=50, min_height:in
         change = np.abs(M_new - M).max()
         M = M_new
         cond=condition_number(M_new)
-        
+        rankm=rank_matrix(M_new)
+
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:

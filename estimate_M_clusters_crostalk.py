@@ -6,6 +6,7 @@ from condition_number import condition_number
 from   regularize_M import regularize_M
 from sklearn.preprocessing import normalize
 from sklearn.preprocessing import StandardScaler
+from rank_matrix import rank_matrix
 
 
 def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
@@ -85,10 +86,12 @@ def estimate_M_clusters_crostalk(data:pd.DataFrame,n_iter:int=30, min_height:int
         change = np.abs(M_new - M).max()
         M = M_new
         cond=condition_number(M_new)
+        rankm=rank_matrix(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:

@@ -4,10 +4,11 @@ from scipy.signal import find_peaks
 from condition_number import condition_number 
 from frobenius_delta import frobenius_delta
 from robust_corr_matrix import robust_corr_matrix
+from rank_matrix import rank_matrix
 
 
 def estimate_M_correlation_crostalk_robust(data:pd.DataFrame,n_iter:int=30, min_height:int=200, 
-                         min_distance:int=10, min_purity:float=0.75,init_M=None, verbose:bool=True):
+                         min_distance:int=10, min_purity:float=0.65,init_M=None, verbose:bool=True):
     """Оценка M через корреляции (Ye et al. 2010).
     data: (N_clusters_or_scans, 4)"""
     data=data.values
@@ -24,11 +25,15 @@ def estimate_M_correlation_crostalk_robust(data:pd.DataFrame,n_iter:int=30, min_
     norms = peak_I.sum(axis=1, keepdims=True)
     norms[norms == 0] = 1
     peak_normalized = peak_I / norms
-    C = robust_corr_matrix(peak_I.T,methods='kendall',annot=False) # (4, 4)
+    # print(type(peak_I))
+    # print(f"NaN count: {np.isnan(peak_I).sum()}")
+    # print(f"peak_I.shape = {peak_I.shape}")
+    peak_df = pd.DataFrame(peak_I, columns=['ch1', 'ch2', 'ch3', 'ch4'])
+    C = robust_corr_matrix(peak_df,methods='kendall',annot=False) # (4, 4)
     if isinstance(C, pd.DataFrame):
         C=C.values
 
-    print(C)
+    # print(C)
     
     # Нормируем столбцы так, чтобы диагональ была максимальной
     # и сумма столбца = 1
@@ -82,11 +87,13 @@ def estimate_M_correlation_crostalk_robust(data:pd.DataFrame,n_iter:int=30, min_
         M = M_new
         frob=frobenius_delta(M_new,M)
         cond=condition_number(M_new)
+        rankm=rank_matrix(M_new)
         
         if verbose and (iteration < 3 or iteration % 5 == 0):
             print(f"  Итерация {iteration+1}: max Δ = {change:.6f}")
             print(f"  Итерация {iteration+1}:  Δfrob = {frob:.6f}")
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:

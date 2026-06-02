@@ -6,7 +6,7 @@ from compute_chastity import compute_chastity
 from compute_purity import compute_purity
 from assignment_change import assignment_change
 from  condition_number import  condition_number
-
+from rank_matrix import rank_matrix
 def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=150, 
                          min_distance:int=10, min_purity:float=0.75,ridge:float=1e-8,
                          init_M=None, verbose:bool=True):
@@ -61,8 +61,12 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
         
         # M-шаг: обновление столбцов
         M_new = np.zeros((4, 4))
+        n_peaks_per_channel = np.zeros(4)
         for j in range(4):
             mask = (assignments == j) & (purities >= min_purity)
+            n_peaks_per_channel[j] = mask.sum()
+            
+     
             
             if mask.sum() < 3:
                 # Недостаточно данных — понижаем порог
@@ -81,6 +85,7 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
         
         frob=frobenius_delta(M_new,M)
         cond=condition_number(M_new)
+        rankm=rank_matrix(M_new)
         if prev_assignments is not None:
             assign_delta=assignment_change(prev_assignments, assignments)
             assign_delta=np.mean(assign_delta)
@@ -98,6 +103,8 @@ def estimate_crosstalk_matrix(data:pd.DataFrame, n_iter:int=30, min_height:int=1
             print(f"  Итерация {iteration+1}:  cond = {cond:.6f}")
             print(f"  Итерация {iteration+1}:  mean purity = {purity.mean():.6f}")
             print(f"  Итерация {iteration+1}:  mean chastity= {chastity.mean():.6f}")
+            print(f"  Итерация {iteration+1}:  mean number channels peaks= {n_peaks_per_channel.mean():.6f}")
+            print(f"  Итерация {iteration+1}:  rank = {rankm:.6f}")
         
         if change < 1e-6 or cond>20:
             if verbose:
